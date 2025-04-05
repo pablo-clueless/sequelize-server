@@ -1,8 +1,11 @@
+const swaggerUI = require("swagger-ui-express");
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
+const path = require("path");
 
 const routes = require("./modules/routes");
+const swaggerSpec = require("./swagger");
 
 const app = express();
 
@@ -10,6 +13,7 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(swaggerSpec));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

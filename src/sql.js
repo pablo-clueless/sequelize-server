@@ -48,8 +48,8 @@ const User = sequelize.define(
       defaultValue: true,
     },
     role: {
-      type: DataTypes.ENUM("customer", "admin"),
-      defaultValue: "customer",
+      type: DataTypes.ENUM("rider", "driver", "admin"),
+      defaultValue: "rider",
     },
   },
   {
@@ -71,17 +71,33 @@ const Order = sequelize.define(
       allowNull: false,
       unique: true,
     },
-    totalAmount: {
+    pickupLocation: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    dropoffLocation: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    distance: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+    },
+    duration: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    fare: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
-      defaultValue: 0.0,
     },
     status: {
       type: DataTypes.ENUM(
         "pending",
-        "processing",
-        "shipped",
-        "delivered",
+        "searching",
+        "accepted",
+        "in_progress",
+        "completed",
         "cancelled",
       ),
       defaultValue: "pending",
@@ -93,12 +109,11 @@ const Order = sequelize.define(
       type: DataTypes.ENUM("pending", "paid", "failed", "refunded"),
       defaultValue: "pending",
     },
-    shippingAddress: {
-      type: DataTypes.TEXT,
-      allowNull: false,
-    },
     notes: {
       type: DataTypes.TEXT,
+    },
+    scheduledTime: {
+      type: DataTypes.DATE,
     },
   },
   {
@@ -106,44 +121,13 @@ const Order = sequelize.define(
     hooks: {
       beforeCreate: (order) => {
         const date = new Date();
-        const prefix = `ORD${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const prefix = `RIDE${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`;
         const random = Math.floor(Math.random() * 10000)
           .toString()
           .padStart(4, "0");
         order.orderNumber = `${prefix}-${random}`;
       },
     },
-  },
-);
-
-const OrderItem = sequelize.define(
-  "OrderItem",
-  {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    productName: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    quantity: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 1,
-    },
-    unitPrice: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
-    },
-    totalPrice: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
-    },
-  },
-  {
-    timestamps: true,
   },
 );
 
@@ -160,24 +144,23 @@ const Tracking = sequelize.define(
       allowNull: false,
       unique: true,
     },
-    carrier: {
-      type: DataTypes.STRING,
-    },
     status: {
       type: DataTypes.ENUM(
         "pending",
+        "en_route_to_pickup",
+        "arrived_at_pickup",
         "in_transit",
-        "out_for_delivery",
-        "delivered",
-        "exception",
+        "arrived_at_dropoff",
+        "completed",
+        "cancelled",
       ),
       defaultValue: "pending",
     },
-    estimatedDelivery: {
-      type: DataTypes.DATE,
-    },
     currentLocation: {
       type: DataTypes.STRING,
+    },
+    estimatedArrival: {
+      type: DataTypes.DATE,
     },
     notes: {
       type: DataTypes.TEXT,
@@ -228,11 +211,12 @@ const TrackingHistory = sequelize.define(
   },
 );
 
-User.hasMany(Order);
-Order.belongsTo(User);
+// Define relationships
+User.hasMany(Order, { foreignKey: "riderId" });
+Order.belongsTo(User, { as: "rider", foreignKey: "riderId" });
 
-Order.hasMany(OrderItem);
-OrderItem.belongsTo(Order);
+User.hasMany(Order, { foreignKey: "driverId" });
+Order.belongsTo(User, { as: "driver", foreignKey: "driverId" });
 
 Order.hasOne(Tracking);
 Tracking.belongsTo(Order);
@@ -249,7 +233,6 @@ module.exports = {
   sequelize,
   User,
   Order,
-  OrderItem,
   Tracking,
   TrackingHistory,
 };
